@@ -1,27 +1,37 @@
 import machine
-import time
 import network
 import socket
+import time
+import json
 
 from config import SSID, PASS
 
-input1 = machine.Pin(0, machine.Pin.OUT)
-input2 = machine.Pin(15, machine.Pin.OUT)
+class MotorController:
+    def __init__(self, pin1, pin2):
+        self.input1 = machine.Pin(pin1, machine.Pin.OUT)
+        self.input2 = machine.Pin(pin2, machine.Pin.OUT)
+        self.current_state = "off"
 
-def motor_forward():
-    print("Motor moving forward")
-    input1.value(1)
-    input2.value(0)
+    def motor_forward(self):
+        print("Motor moving forward")
+        self.input1.value(1)
+        self.input2.value(0)
+        self.current_state = "forward"
 
-def motor_backward():
-    print("Motor moving backward")
-    input1.value(0)
-    input2.value(1)
+    def motor_backward(self):
+        print("Motor moving backward")
+        self.input1.value(0)
+        self.input2.value(1)
+        self.current_state = "backward"
 
-def motor_off():
-    print("Motor off")
-    input1.value(0)
-    input2.value(0)
+    def motor_off(self):
+        print("Motor off")
+        self.input1.value(0)
+        self.input2.value(0)
+        self.current_state = "off"
+
+    def get_state(self):
+        return self.current_state
 
 class WiFiConnection:
     def __init__(self, ssid, password):
@@ -35,61 +45,61 @@ class WiFiConnection:
             self.sta_if.active(True)
             self.sta_if.connect(self.ssid, self.password)
             while not self.sta_if.isconnected():
+                print("Waiting for connection...")
                 time.sleep(1)
         print("Connected to WiFi. IP address:", self.sta_if.ifconfig()[0])
 
-def web_page():
-    html = """<!DOCTYPE html>
-    <html>
-    <head>
-        <title>Motor Control</title>
-    </head>
-    <body>
-        <h1>Motor Control</h1>
-        <form action="/forward">
-            <input type="submit" value="Forward">
-        </form><br>
-        <form action="/backward">
-            <input type="submit" value="Backward">
-        </form><br>
-        <form action="/off">
-            <input type="submit" value="Off">
-        </form>
-    </body>
-    </html>"""
-    return html
+def serve_file(filename, content_type):
+    print(f"Serving file: {filename}")
+    with open(filename, 'r') as file:
+        return 'HTTP/1.1 200 OK\nContent-Type: {}\n\n{}'.format(content_type, file.read())
+
+def handle_request(request, motor_controller):
+    if 'GET / ' in request:
+        return serve_file('/index.html', 'text/html')
+    elif 'GET /forward' in request:
+        motor_controller.motor_forward()
+        return 'HTTP/1.1 200 OK\nContent-Type: application/json\n\n{}'.format(
+            json.dumps({"state": motor_controller.get_state()})
+        )
+    elif 'GET /backward' in request:
+        motor_controller.motor_backward()
+        return 'HTTP/1.1 200 OK\nContent-Type: application/json\n\n{}'.format(
+            json.dumps({"state": motor_controller.get_state()})
+        )
+    elif 'GET /off' in request:
+        motor_controller.motor_off()
+        return 'HTTP/1.1 200 OK\nContent-Type: application/json\n\n{}'.format(
+            json.dumps({"state": motor_controller.get_state()})
+        )
+    else:
+        print("404 - Page not found")
+        return 'HTTP/1.1 404 NOT FOUND\n\nPage not found'
 
 def main():
+    print("Starting program...")
     wifi = WiFiConnection(SSID, PASS)
     wifi.connect()
+
+    motor_controller = MotorController(pin1=0, pin2=15)
 
     addr = socket.getaddrinfo('0.0.0.0', 80)[0][-1]
     s = socket.socket()
     s.bind(addr)
-    s.listen(1)
-
+    s.listen(5)
     print('Listening on', addr)
 
     while True:
+        print("Waiting for a new client...")
         cl, addr = s.accept()
         print('Client connected from', addr)
-        request = cl.recv(1024)
-        request = str(request)
-        print('Request:', request)
+        request = cl.recv(1024).decode()
+        print(f"Received request: {request}")
 
-        if '/forward' in request:
-            motor_forward()
-        elif '/backward' in request:
-            motor_backward()
-        elif '/off' in request:
-            motor_off()
-
-        response = web_page()
-        cl.send('HTTP/1.1 200 OK\n')
-        cl.send('Content-Type: text/html\n')
-        cl.send('Connection: close\n\n')
-        cl.sendall(response)
+        response = handle_request(request, motor_controller)
+        cl.send(response)
         cl.close()
+        print("Client connection closed")
 
 if __name__ == "__main__":
     main()

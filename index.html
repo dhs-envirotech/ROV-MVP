@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Motor Control</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <h1 class="title">
+                Motor Control Interface
+            </h1>
+            <p class="subtitle">
+                Control motors and view their current state(s).
+            </p>
+
+            <div class="box" style="border-radius: 15px">
+                <h2 class="title is-4">Motor 1</h2>
+                
+                <div class="buttons">
+                    <button class="button is-primary" onclick="sendCommand('forward')">Forward</button>
+                    <button class="button is-warning" onclick="sendCommand('backward')">Backward</button>
+                    <button class="button is-danger" onclick="sendCommand('off')">Off</button>
+                </div>
+
+                <div class="notification is-info mt-5">
+                    <p id="motorState">Current motor state: <strong>Unknown</strong></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        function sendCommand(command) {
+            fetch(`/${command}`)
+                .then(response => response.json())
+                .then(data => updateMotorState(data))
+                .catch(error => console.error('Error:', error));
+        }
+
+        function updateMotorState(data) {
+            const motorStateElement = document.getElementById('motorState');
+            motorStateElement.innerHTML = `Current motor state: <strong>${data.state}</strong>`;
+        }
+
+        window.onload = updateMotorState({"state":"off"});
+    </script>
+</body>
+</html>
