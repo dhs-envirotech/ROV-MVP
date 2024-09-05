@@ -47,6 +47,7 @@
                     <div class="notification is-info mt-5">
                         <p id="${motorKey}State">Current motor state: <strong>${motor.state}</strong></p>
                     </div>
+                    <input type="range" min="0" max="255" value="${motor.pwm}" class="slider" id="${motorKey}Slider" oninput="updatePWM('${motorKey}', this.value)">
                 `;
                 motorsContainer.appendChild(motorBox);
             });
@@ -66,6 +67,13 @@
                     motorStateElement.innerHTML = `Current motor state: <strong>${data[motorKey].state}</strong>`;
                 }
             });
+        }
+
+        function updatePWM(motorKey, value) {
+            fetch(`/${motorKey}/pwm?value=${value}`)
+                .then(response => response.json())
+                .then(data => updateMotorState(data))
+                .catch(error => console.error('Error updating PWM:', error));
         }
 
         window.onload = fetchMotorsState;
