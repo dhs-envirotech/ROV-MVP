@@ -7,31 +7,32 @@ import json
 from config import SSID, PASS
 
 class MotorController:
-    def __init__(self, pin1, pin2):
+    def __init__(self, name, pin1, pin2):
+        self.name = name
         self.input1 = machine.Pin(pin1, machine.Pin.OUT)
         self.input2 = machine.Pin(pin2, machine.Pin.OUT)
         self.current_state = "off"
 
     def motor_forward(self):
-        print("Motor moving forward")
+        print(f"{self.name} moving forward")
         self.input1.value(1)
         self.input2.value(0)
         self.current_state = "forward"
 
     def motor_backward(self):
-        print("Motor moving backward")
+        print(f"{self.name} moving backward")
         self.input1.value(0)
         self.input2.value(1)
         self.current_state = "backward"
 
     def motor_off(self):
-        print("Motor off")
+        print(f"{self.name} off")
         self.input1.value(0)
         self.input2.value(0)
         self.current_state = "off"
 
     def get_state(self):
-        return self.current_state
+        return {"name": self.name, "state": self.current_state}
 
 class WiFiConnection:
     def __init__(self, ssid, password):
@@ -54,34 +55,41 @@ def serve_file(filename, content_type):
     with open(filename, 'r') as file:
         return 'HTTP/1.1 200 OK\nContent-Type: {}\n\n{}'.format(content_type, file.read())
 
-def handle_request(request, motor_controller):
+def handle_request(request, motors):
     if 'GET / ' in request:
         return serve_file('/index.html', 'text/html')
-    elif 'GET /forward' in request:
-        motor_controller.motor_forward()
-        return 'HTTP/1.1 200 OK\nContent-Type: application/json\n\n{}'.format(
-            json.dumps({"state": motor_controller.get_state()})
-        )
-    elif 'GET /backward' in request:
-        motor_controller.motor_backward()
-        return 'HTTP/1.1 200 OK\nContent-Type: application/json\n\n{}'.format(
-            json.dumps({"state": motor_controller.get_state()})
-        )
-    elif 'GET /off' in request:
-        motor_controller.motor_off()
-        return 'HTTP/1.1 200 OK\nContent-Type: application/json\n\n{}'.format(
-            json.dumps({"state": motor_controller.get_state()})
-        )
-    else:
-        print("404 - Page not found")
-        return 'HTTP/1.1 404 NOT FOUND\n\nPage not found'
+    elif 'GET /state' in request:
+        states = {motor_name: motor.get_state() for motor_name, motor in motors.items()}
+        return 'HTTP/1.1 200 OK\nContent-Type: application/json\n\n{}'.format(json.dumps(states))
+    
+    for motor_name, motor in motors.items():
+        if f'GET /{motor_name}/forward' in request:
+            motor.motor_forward()
+            return 'HTTP/1.1 200 OK\nContent-Type: application/json\n\n{}'.format(
+                json.dumps({"state": motor.get_state()})
+            )
+        elif f'GET /{motor_name}/backward' in request:
+            motor.motor_backward()
+            return 'HTTP/1.1 200 OK\nContent-Type: application/json\n\n{}'.format(
+                json.dumps({"state": motor.get_state()})
+            )
+        elif f'GET /{motor_name}/off' in request:
+            motor.motor_off()
+            return 'HTTP/1.1 200 OK\nContent-Type: application/json\n\n{}'.format(
+                json.dumps({"state": motor.get_state()})
+            )
+
+    print("404 - Page not found")
+    return 'HTTP/1.1 404 NOT FOUND\n\nPage not found'
 
 def main():
     print("Starting program...")
     wifi = WiFiConnection(SSID, PASS)
     wifi.connect()
 
-    motor_controller = MotorController(pin1=0, pin2=15)
+    motors = {
+        "motor1": MotorController("Motor 1", pin1=0, pin2=15),
+    }
 
     addr = socket.getaddrinfo('0.0.0.0', 80)[0][-1]
     s = socket.socket()
@@ -96,7 +104,7 @@ def main():
         request = cl.recv(1024).decode()
         print(f"Received request: {request}")
 
-        response = handle_request(request, motor_controller)
+        response = handle_request(request, motors)
         cl.send(response)
         cl.close()
         print("Client connection closed")

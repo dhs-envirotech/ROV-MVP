@@ -15,24 +15,43 @@
             <p class="subtitle">
                 Control motors and view their current state(s).
             </p>
-
-            <div class="box" style="border-radius: 15px">
-                <h2 class="title is-4">Motor 1</h2>
-                
-                <div class="buttons">
-                    <button class="button is-primary" onclick="sendCommand('forward')">Forward</button>
-                    <button class="button is-warning" onclick="sendCommand('backward')">Backward</button>
-                    <button class="button is-danger" onclick="sendCommand('off')">Off</button>
-                </div>
-
-                <div class="notification is-info mt-5">
-                    <p id="motorState">Current motor state: <strong>Unknown</strong></p>
-                </div>
-            </div>
+            <div id="motorsContainer"></div>
         </div>
     </section>
 
     <script>
+        function fetchMotorsState() {
+            fetch('/state')
+                .then(response => response.json())
+                .then(data => renderMotors(data))
+                .catch(error => console.error('Error fetching motor states:', error));
+        }
+
+        function renderMotors(motors) {
+            const motorsContainer = document.getElementById('motorsContainer');
+            motorsContainer.innerHTML = '';
+            
+            Object.keys(motors).forEach(motorKey => {
+                const motor = motors[motorKey];
+                const motorBox = document.createElement('div');
+                motorBox.className = 'box';
+                motorBox.style = 'border-radius: 15px; margin-bottom: 20px;';
+                
+                motorBox.innerHTML = `
+                    <h2 class="title is-4">${motor.name}</h2>
+                    <div class="buttons">
+                        <button class="button is-primary" onclick="sendCommand('${motorKey}/forward')">Forward</button>
+                        <button class="button is-warning" onclick="sendCommand('${motorKey}/backward')">Backward</button>
+                        <button class="button is-danger" onclick="sendCommand('${motorKey}/off')">Off</button>
+                    </div>
+                    <div class="notification is-info mt-5">
+                        <p id="${motorKey}State">Current motor state: <strong>${motor.state}</strong></p>
+                    </div>
+                `;
+                motorsContainer.appendChild(motorBox);
+            });
+        }
+
         function sendCommand(command) {
             fetch(`/${command}`)
                 .then(response => response.json())
@@ -41,11 +60,15 @@
         }
 
         function updateMotorState(data) {
-            const motorStateElement = document.getElementById('motorState');
-            motorStateElement.innerHTML = `Current motor state: <strong>${data.state}</strong>`;
+            Object.keys(data).forEach(motorKey => {
+                const motorStateElement = document.getElementById(`${motorKey}State`);
+                if (motorStateElement) {
+                    motorStateElement.innerHTML = `Current motor state: <strong>${data[motorKey].state}</strong>`;
+                }
+            });
         }
 
-        window.onload = updateMotorState({"state":"off"});
+        window.onload = fetchMotorsState;
     </script>
 </body>
 </html>
