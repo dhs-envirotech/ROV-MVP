@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Motor Control</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
+    <link rel="stylesheet" href="../static/styles/bulma.min.css">
 </head>
 <body>
     <section class="section">
@@ -47,7 +47,7 @@
                     <div class="notification is-info mt-5">
                         <p id="${motorKey}State">Current motor state: <strong>${motor.state}</strong></p>
                     </div>
-                    <input type="range" min="0" max="255" value="${motor.pwm}" class="slider" id="${motorKey}Slider" oninput="updatePWM('${motorKey}', this.value)">
+                    <input type="range" min="0" max="100" value="${motor.pwm}" class="slider" id="${motorKey}Slider" oninput="updatePWM('${motorKey}', this.value)">
                 `;
                 motorsContainer.appendChild(motorBox);
             });

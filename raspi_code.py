@@ -1,6 +1,5 @@
-from flask import Flask, request, jsonify, send_from_directory, render_template
+from flask import Flask, request, jsonify
 import RPi.GPIO as GPIO
-import os
 
 app = Flask(__name__)
 
@@ -29,20 +28,24 @@ class MotorController:
         GPIO.output(self.input1, GPIO.HIGH)
         GPIO.output(self.input2, GPIO.LOW)
         self.current_state = "forward"
+        print(f"{self.name} moving forward")
 
     def motor_backward(self):
         GPIO.output(self.input1, GPIO.LOW)
         GPIO.output(self.input2, GPIO.HIGH)
         self.current_state = "backward"
+        print(f"{self.name} moving backward")
 
     def motor_off(self):
         GPIO.output(self.input1, GPIO.LOW)
         GPIO.output(self.input2, GPIO.LOW)
         self.current_state = "off"
+        print(f"{self.name} off")
 
     def set_pwm(self, value):
         self.pwm_value = max(0, min(100, value))
         self.pwm.ChangeDutyCycle(self.pwm_value)
+        print(f"{self.name} PWM set to {self.pwm_value}")
 
     def get_state(self):
         return {"name": self.name, "state": self.current_state, "pwm": self.pwm_value}
@@ -53,10 +56,10 @@ motors = {
     "motor2": MotorController("Motor 2", input1=5, input2=6, pwm_pin=13)
 }
 
-# Serve the index.html file
+# Flask routes
 @app.route('/')
 def home():
-    return send_from_directory(os.getcwd(), 'templates/index.html')
+    return "Motor Controller is running"
 
 @app.route('/state', methods=['GET'])
 def get_states():
@@ -67,7 +70,7 @@ def get_states():
 def motor_forward(motor_name):
     if motor_name in motors:
         motors[motor_name].motor_forward()
-        return jsonify({motor_name: motors[motor_name].get_state()})
+        return jsonify(motors[motor_name].get_state())
     else:
         return "Motor not found", 404
 
@@ -75,7 +78,7 @@ def motor_forward(motor_name):
 def motor_backward(motor_name):
     if motor_name in motors:
         motors[motor_name].motor_backward()
-        return jsonify({motor_name: motors[motor_name].get_state()})
+        return jsonify(motors[motor_name].get_state())
     else:
         return "Motor not found", 404
 
@@ -83,7 +86,7 @@ def motor_backward(motor_name):
 def motor_off(motor_name):
     if motor_name in motors:
         motors[motor_name].motor_off()
-        return jsonify({motor_name: motors[motor_name].get_state()})
+        return jsonify(motors[motor_name].get_state())
     else:
         return "Motor not found", 404
 
@@ -92,7 +95,7 @@ def set_pwm(motor_name):
     if motor_name in motors:
         pwm_value = request.args.get('value', default=0, type=int)
         motors[motor_name].set_pwm(pwm_value)
-        return jsonify({motor_name: motors[motor_name].get_state()})
+        return jsonify(motors[motor_name].get_state())
     else:
         return "Motor not found", 404
 
@@ -104,7 +107,7 @@ def gpio_cleanup():
 # Run the Flask server
 if __name__ == "__main__":
     try:
-        app.run(host='0.0.0.0', port=5000, debug=True)
+        app.run(host='0.0.0.0', port=80, debug=True)
     except KeyboardInterrupt:
         GPIO.cleanup()
         print("GPIO Clean up")
