@@ -1,6 +1,6 @@
 #this is some experimental code that uses sockets instead
 
 run server.py first
-run the react application (use "npm start")
+run the react application (use "npm start") - camera will prob take a couple seconds to load
 
 will likely have to configure IP if running on two different systems
